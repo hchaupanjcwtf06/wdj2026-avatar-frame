@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tạo Avatar Frame - WDJ 2026</title>
+  <style>
+    :root {
+      --bg: #121212;
+      --card: #1e1e1e;
+      --accent: #f5c518;
+      --text: #f3f3f3;
+      --muted: #a0a0a0;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+
+    .container {
+      background-color: var(--card);
+      width: 100%;
+      max-width: 460px;
+      padding: 24px;
+      border-radius: 16px;
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+      text-align: center;
+    }
+
+    h1 {
+      font-size: 1.35rem;
+      margin-bottom: 6px;
+    }
+
+    p.subtitle {
+      font-size: 0.88rem;
+      color: var(--muted);
+      margin-bottom: 18px;
+    }
+
+    .canvas-wrapper {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      border-radius: 12px;
+      overflow: hidden;
+      background-image:
+        linear-gradient(45deg, #2a2a2a 25%, transparent 25%),
+        linear-gradient(-45deg, #2a2a2a 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #2a2a2a 75%),
+        linear-gradient(-45deg, transparent 75%, #2a2a2a 75%);
+      background-size: 20px 20px;
+      background-position: 0 0, 0 10px, 10px -10px, -10px 0;
+      border: 2px solid #333;
+      cursor: grab;
+      touch-action: none;
+    }
+
+    .canvas-wrapper:active {
+      cursor: grabbing;
+    }
+
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .controls {
+      margin-top: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .slider-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+
+    input[type="range"] {
+      flex: 1;
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+
+    /* Toggle Switch cho chế độ Blur nền */
+    .toggle-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background-color: #262626;
+      padding: 10px 14px;
+      border-radius: 10px;
+      border: 1px solid #333;
+      font-size: 0.9rem;
+    }
+
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 44px;
+      height: 24px;
+    }
+
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .slider-round {
+      position: absolute;
+      cursor: pointer;
+      inset: 0;
+      background-color: #444;
+      transition: 0.25s;
+      border-radius: 24px;
+    }
+
+    .slider-round::before {
+      position: absolute;
+      content: "";
+      height: 18px;
+      width: 18px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      transition: 0.25s;
+      border-radius: 50%;
+    }
+
+    input:checked + .slider-round {
+      background-color: var(--accent);
+    }
+
+    input:checked + .slider-round::before {
+      transform: translateX(20px);
+      background-color: #111;
+    }
+
+    input:disabled + .slider-round {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    .btn-row {
+      display: flex;
+      gap: 10px;
+    }
+
+    .btn {
+      flex: 1;
+      padding: 12px 16px;
+      border: none;
+      border-radius: 10px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.1s;
+    }
+
+    .btn:active {
+      transform: scale(0.98);
+    }
+
+    .btn-upload {
+      background-color: #2e2e2e;
+      color: var(--text);
+      border: 1px solid #444;
+    }
+
+    .btn-download {
+      background-color: var(--accent);
+      color: #111;
+    }
+
+    .btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    input[type="file"] {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <main class="container">
+    <h1>Đổi Avatar Frame</h1>
+    <p class="subtitle">Tải ảnh lên, kéo để căn chỉnh và phóng to/thu nhỏ vừa khung kính</p>
+
+    <div class="canvas-wrapper" id="canvasWrapper">
+      <canvas id="avatarCanvas" width="1024" height="1024"></canvas>
+    </div>
+
+    <div class="controls">
+      <div class="slider-group">
+        <span>Thu nhỏ</span>
+        <input type="range" id="zoomSlider" min="0.2" max="3" step="0.01" value="1" disabled />
+        <span>Phóng to</span>
+      </div>
+
+      <div class="toggle-row">
+        <span>Làm mờ khoảng trống xung quanh (Blur)</span>
+        <label class="switch">
+          <input type="checkbox" id="blurToggle" checked disabled />
+          <span class="slider-round"></span>
+        </label>
+      </div>
+
+      <div class="btn-row">
+        <label for="imageInput" class="btn btn-upload">Chọn ảnh của bạn</label>
+        <input type="file" id="imageInput" accept="image/*" />
+        <button id="downloadBtn" class="btn btn-download" disabled>Tải ảnh về</button>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const canvas = document.getElementById("avatarCanvas");
+    const ctx = canvas.getContext("2d");
+    const imageInput = document.getElementById("imageInput");
+    const zoomSlider = document.getElementById("zoomSlider");
+    const blurToggle = document.getElementById("blurToggle");
+    const downloadBtn = document.getElementById("downloadBtn");
+    const canvasWrapper = document.getElementById("canvasWrapper");
+
+    const frameImg = new Image();
+    frameImg.src = "frame.png";
+
+    let userImg = null;
+    let imgX = canvas.width / 2;
+    let imgY = canvas.height / 2;
+    let scale = 1;
+    let isDragging = false;
+    let startX = 0;
+    let startY = 0;
+
+    frameImg.onload = () => {
+      canvas.width = frameImg.naturalWidth || 1024;
+      canvas.height = frameImg.naturalHeight || 1024;
+      imgX = canvas.width / 2;
+      imgY = canvas.height / 2;
+      render();
+    };
+
+    function render() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      if (userImg) {
+        // Lớp 1 (Dưới cùng): Nền mờ lấp đầy khoảng trống nếu bật Blur
+        if (blurToggle.checked) {
+          ctx.save();
+          // Phóng nhẹ thêm 1.1x để viền mờ không bị hở mép trắng ở rìa canvas
+          const coverScale = Math.max(
+            canvas.width / userImg.width,
+            canvas.height / userImg.height
+          ) * 1.1;
+
+          const blurRadius = Math.round(canvas.width * 0.025); // Tự động chỉnh độ mờ theo độ phân giải
+          ctx.filter = `blur(${blurRadius}px) brightness(0.85)`;
+          ctx.translate(canvas.width / 2, canvas.height / 2);
+          ctx.scale(coverScale, coverScale);
+          ctx.drawImage(
+            userImg,
+            -userImg.width / 2,
+            -userImg.height / 2,
+            userImg.width,
+            userImg.height
+          );
+          ctx.restore();
+        }
+
+        // Lớp 2 (Giữa): Ảnh gốc người dùng tự kéo chỉnh
+        ctx.save();
+        ctx.translate(imgX, imgY);
+        ctx.scale(scale, scale);
+        ctx.drawImage(
+          userImg,
+          -userImg.width / 2,
+          -userImg.height / 2,
+          userImg.width,
+          userImg.height
+        );
+        ctx.restore();
+      }
+
+      // Lớp 3 (Trên cùng): Frame kính lúp trong suốt
+      if (frameImg.complete && frameImg.naturalWidth > 0) {
+        ctx.drawImage(frameImg, 0, 0, canvas.width, canvas.height);
+      }
+    }
+
+    imageInput.addEventListener("change", (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+          userImg = img;
+          const fitScale = Math.max(
+            canvas.width / img.width,
+            canvas.height / img.height
+          );
+          scale = fitScale;
+          zoomSlider.min = (fitScale * 0.3).toFixed(2);
+          zoomSlider.max = (fitScale * 3).toFixed(2);
+          zoomSlider.value = scale;
+          zoomSlider.disabled = false;
+          blurToggle.disabled = false;
+          downloadBtn.disabled = false;
+
+          imgX = canvas.width / 2;
+          imgY = canvas.height / 2;
+          render();
+        };
+        img.src = event.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+
+    zoomSlider.addEventListener("input", (e) => {
+      scale = parseFloat(e.target.value);
+      render();
+    });
+
+    blurToggle.addEventListener("change", () => {
+      render();
+    });
+
+    canvasWrapper.addEventListener("wheel", (e) => {
+      if (!userImg) return;
+      e.preventDefault();
+      const delta = e.deltaY < 0 ? 0.05 : -0.05;
+      const newScale = Math.min(
+        parseFloat(zoomSlider.max),
+        Math.max(parseFloat(zoomSlider.min), scale + delta)
+      );
+      scale = newScale;
+      zoomSlider.value = scale;
+      render();
+    }, { passive: false });
+
+    canvasWrapper.addEventListener("pointerdown", (e) => {
+      if (!userImg) return;
+      isDragging = true;
+      canvasWrapper.setPointerCapture(e.pointerId);
+      const rect = canvas.getBoundingClientRect();
+      const ratio = canvas.width / rect.width;
+      startX = e.clientX * ratio - imgX;
+      startY = e.clientY * ratio - imgY;
+    });
+
+    canvasWrapper.addEventListener("pointermove", (e) => {
+      if (!isDragging || !userImg) return;
+      const rect = canvas.getBoundingClientRect();
+      const ratio = canvas.width / rect.width;
+      imgX = e.clientX * ratio - startX;
+      imgY = e.clientY * ratio - startY;
+      render();
+    });
+
+    canvasWrapper.addEventListener("pointerup", (e) => {
+      isDragging = false;
+      canvasWrapper.releasePointerCapture(e.pointerId);
+    });
+
+    downloadBtn.addEventListener("click", () => {
+      if (!userImg) return;
+      render();
+      const link = document.createElement("a");
+      link.download = "avatar-frame.png";
+      link.href = canvas.toDataURL("image/png", 1.0);
+      link.click();
+    });
+  </script>
+</body>
+</html>
